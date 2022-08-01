@@ -1,6 +1,12 @@
 import shade
+import hexagon as hexagonModule
 
-const isMobile = defined(mobile)
+const
+  isMobile = defined(mobile)
+  columns = 6
+  rows = 5
+  gridPadding = 20
+  paddingFromSides = vector(200, 20)
 
 type GameLayer = ref object of Layer
   touchLoc: Vector
@@ -46,6 +52,11 @@ proc newGameLayer*(): GameLayer =
       if isMouseDown:
         let motion = e.motion
         this.onFingerDrag(float motion.x, float motion.y)
+
+  for i in 0 .. 12:
+    let hexagon = newHexagon(getRandomHexagonColor())
+    hexagon.setLocation(float i * 32, float i * 32)
+    this.addChild(hexagon)
 
 # NOTE: Can get events off screen, even negative coords.
 proc onFingerDown(this: GameLayer, x, y: float) =
