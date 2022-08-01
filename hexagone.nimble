@@ -20,7 +20,10 @@ switch("import", "std/lenientops")
 task runr, "Runs the program in release mode":
   exec "nim r -d:release src/hexagone.nim"
 
-task run_mobile, "Runs the program in release mode":
+task rund, "Runs the program in debug mode":
+  exec "nim r -d:debug src/hexagone.nim"
+
+task run_mobile, "Runs the program in release mode for mobile":
   exec "nim r -d:release -d:mobile src/hexagone.nim"
 
 task buildr, "Builds a release binary of the program":
