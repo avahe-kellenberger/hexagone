@@ -1,6 +1,8 @@
 import shade
-
 import gamelayer
+import std/[random]
+
+randomize()
 
 const
   isMobile = defined(mobile)
@@ -16,7 +18,8 @@ initEngineSingleton(
   "Hexagone",
   width,
   height,
-  windowFlags = windowFlags
+  windowFlags = windowFlags,
+  clearColor = newColor(30, 30, 30)
 )
 
 let layer = newGameLayer()

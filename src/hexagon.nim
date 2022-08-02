@@ -1,8 +1,6 @@
 import shade
 
-import std/[tables, random]
-
-randomize()
+import std/[tables, random, sugar]
 
 type HexagonColor* = enum
   RED
@@ -12,7 +10,7 @@ type HexagonColor* = enum
   PURPLE
 
 const
-  HEXAGON_IMAGE_PATH = "./assets/gfx/hexagon.png"
+  HEXAGON_IMAGE_PATH = "./assets/gfx/hexagon_small.png"
   COLOR_TABLE = {
     RED: newColor(246, 76, 59),
     YELLOW: newColor(243, 228, 17),
@@ -20,23 +18,24 @@ const
     BLUE: newColor(95, 198, 216),
     PURPLE: newColor(110, 58, 106)
   }.toTable()
-
-  HEXAGON_SIZE* = vector(200, 230)
+  HEXAGON_SIZE* = vector(50, 58)
   HEXAGON_HALF_WIDTH* = HEXAGON_SIZE.x * 0.5
   HEXAGON_THREE_QUARTER_HEIGHT* = HEXAGON_SIZE.y * 0.75
   HEXAGON_QUARTER_HEIGHT* = HEXAGON_SIZE.y * 0.25
 
-# TODO: Scale image down based on sceen size (gamestate.resolution).
-# self.gameobjectsScalar = (screenSize.x - paddingFromSides.x * 2) / self.grid.width()
-# From Gameplay.gd ^
+var ALL_COLORS: set[HexagonColor]
+for color in HexagonColor.low .. HexagonColor.high:
+  ALL_COLORS.incl(HexagonColor color)
+
 var hexagonImage: Image = nil
 
 type Hexagon* = ref object of Node
   color*: HexagonColor
   rgb: Color
+  scale: float
 
-proc newHexagon*(color: HexagonColor): Hexagon =
-  result = Hexagon(color: color, rgb: COLOR_TABLE[color])
+proc newHexagon*(color: HexagonColor, scale: float): Hexagon =
+  result = Hexagon(color: color, rgb: COLOR_TABLE[color], scale: scale)
   initNode(Node result)
 
   if hexagonImage == nil:
@@ -47,9 +46,11 @@ proc getRandomHexagonColor*(): HexagonColor =
   return rand(HexagonColor.low .. HexagonColor.high)
 
 proc getRandomHexagonColorExcluding*(colors: set[HexagonColor]): HexagonColor =
-  return rand(HexagonColor.low .. HexagonColor.high)
+  if colors == ALL_COLORS:
+    raise newException(Exception, "getRandomHexagonColorExcluding given all colors!")
+  return sample(ALL_COLORS - colors)
 
 Hexagon.renderAsNodeChild:
   hexagonImage.setRGB(this.rgb.r, this.rgb.g, this.rgb.b)
-  hexagonImage.blit(nil, ctx, this.x + offsetX, this.y + offsetY)
+  hexagonImage.blitScale(nil, ctx, this.x + offsetX, this.y + offsetY, this.scale, this.scale)
 

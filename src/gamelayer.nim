@@ -1,19 +1,26 @@
 import shade
-import hexagon as hexagonModule
+import
+  hexagon as hexagonModule,
+  hexagon_grid as hexagonGridModule
 
 const
   isMobile = defined(mobile)
+  paddingFromSides = if isMobile: vector(52, 8) else: vector(26, 4)
+  gridPadding = if isMobile: 4 else: 2
   columns = 6
   rows = 5
-  gridPadding = 20
-  paddingFromSides = vector(200, 20)
 
 type GameLayer = ref object of Layer
   touchLoc: Vector
+  score: int
+  grid: HexagonGrid
+  gameobjectsScalar: float
+  inverseGameobjectsScalar: float
 
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
 proc onFingerDrag(this: GameLayer, x, y: float)
+proc resetGame(this: GameLayer)
 
 proc newGameLayer*(): GameLayer =
   result = GameLayer()
@@ -53,10 +60,7 @@ proc newGameLayer*(): GameLayer =
         let motion = e.motion
         this.onFingerDrag(float motion.x, float motion.y)
 
-  for i in 0 .. 12:
-    let hexagon = newHexagon(getRandomHexagonColor())
-    hexagon.setLocation(float i * 32, float i * 32)
-    this.addChild(hexagon)
+  result.resetGame()
 
 # NOTE: Can get events off screen, even negative coords.
 proc onFingerDown(this: GameLayer, x, y: float) =
@@ -70,4 +74,17 @@ proc onFingerUp(this: GameLayer, x, y: float) =
 proc onFingerDrag(this: GameLayer, x, y: float) =
   this.touchLoc.x = x
   this.touchLoc.y = y
+
+proc resetGame(this: GameLayer) =
+  reset this.score
+
+  let gridWidthInPixels = widthInPixels(columns, rows, gridPadding)
+  this.gameobjectsScalar = (gamestate.resolution.x - paddingFromSides.x * 2) / gridWidthInPixels
+  this.grid = createRandomHexagonGrid(columns, rows, gridPadding, this.gameobjectsScalar)
+  this.inverseGameobjectsScalar = 1.0 / this.gameobjectsScalar
+  this.grid.location = paddingFromSides
+
+GameLayer.renderAsChildOf(Layer):
+  if this.grid != nil:
+    this.grid.render(ctx, offsetX, offsetY)
 

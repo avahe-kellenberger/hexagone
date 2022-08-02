@@ -6,8 +6,8 @@ import hexagon as hexagonModule
 
 type
   Cell* = tuple[x: int, y: int]
-  HexagonGrid* = object
-    location: Vector
+  HexagonGrid* = ref object
+    location*: Vector
     columnOffset: int
     # Whether the first row is offset
     isFirstRowOffset: bool
@@ -17,22 +17,62 @@ type
 
 const NULL_CELL* = (-1, -1)
 
+proc getHexagon(this: HexagonGrid, column, row: int): Hexagon
+proc setHexagon(this: HexagonGrid, column, row: int, hex: Hexagon)
 proc updateHexagonPositions(this: HexagonGrid)
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int)
-proc removeHexagonAt*(this: var HexagonGrid, column, row: int): Hexagon
+proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon
 proc isColumnEmpty*(this: HexagonGrid, x: int): bool
 proc isRowEmpty*(this: HexagonGrid, y: int): bool
 proc floodfill(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: HexagonColor)
 proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell]
 proc getHexagonPosition(this: HexagonGrid, column, row: int): Vector
 
-proc newHexagonGrid*(width, height, padding: int, hexagonSize: Vector): HexagonGrid =
+proc newHexagonGrid(width, height, padding: int, hexagonSize: Vector): HexagonGrid =
   if width < 1 or height < 1:
     raise newException(Exception, "Width and height of HexagonGrid must be > 0")
 
+  result = HexagonGrid()
   result.hexagonSize = hexagonSize
   result.padding = padding
   result.grid = newSeq2D[Hexagon](width, height)
+
+proc createRandomHexagonGrid*(width, height, padding: int, objectScalar: float): HexagonGrid =
+  result = newHexagonGrid(width, height, padding, HEXAGON_SIZE * objectScalar)
+  var
+    lastColor = getRandomHexagonColor()
+    touchingColors: set[HexagonColor]
+
+  for row in 0 ..< height:
+    for col in 0 ..< width:
+      # Find colors of the above hexagons.
+      var upLeftColor = -1
+      var upRightColor = -1
+
+      if row > 0:
+        if (row mod 2) != 0:
+          upLeftColor = ord result.getHexagon(col, row - 1).color
+          if col + 1 < width:
+            upRightColor = ord result.getHexagon(col + 1, row - 1).color
+        else:
+          upRightColor = ord result.getHexagon(col, row - 1).color
+          if col > 0:
+            upLeftColor = ord result.getHexagon(col - 1, row - 1).color
+
+      if upLeftColor != -1:
+        touchingColors.incl(HexagonColor upLeftColor)
+
+      if upRightColor != -1:
+        touchingColors.incl(HexagonColor upRightColor)
+
+      touchingColors.incl(lastColor)
+
+      let newColor = getRandomHexagonColorExcluding(touchingColors)
+      reset touchingColors
+
+      let hexagon = newHexagon(newColor, objectScalar)
+      result.setHexagon(col, row, hexagon)
+      lastColor = newColor
 
 proc width*(this: HexagonGrid): int =
   return this.grid.width
@@ -40,15 +80,15 @@ proc width*(this: HexagonGrid): int =
 proc height*(this: HexagonGrid): int =
   return this.grid.height
 
-proc widthInPixels*(this: HexagonGrid): float =
-  result = this.width * (HEXAGON_SIZE.x + this.padding) - this.padding
-  if this.height > 1:
-    result += HEXAGON_HALF_WIDTH
+func widthInPixels*(columns, rows, padding: int): float =
+  result = columns * (HEXAGON_SIZE.x + padding) - padding
+  if rows > 1:
+    result += HEXAGON_HALF_WIDTH + padding
 
-proc heightInPixels*(this: HexagonGrid): float =
-  return this.height * (
-    HEXAGON_THREE_QUARTER_HEIGHT + this.padding
-  ) + HEXAGON_QUARTER_HEIGHT - this.padding
+func heightInPixels*(rows, padding: int): float =
+  result = rows * (
+    HEXAGON_THREE_QUARTER_HEIGHT + padding
+  ) + HEXAGON_QUARTER_HEIGHT - padding
 
 proc isRowOffset(this: HexagonGrid, row: int): bool =
   return ((row and 1) == 0) == this.isFirstRowOffset
@@ -65,7 +105,7 @@ proc getHexagon(this: HexagonGrid, column, row: int): Hexagon =
     return nil
   return this.grid[column, row]
 
-proc setHexagon(this: var HexagonGrid, column, row: int, hex: Hexagon) =
+proc setHexagon(this: HexagonGrid, column, row: int, hex: Hexagon) =
   if hex == nil:
     return
 
@@ -121,11 +161,11 @@ proc setHexagon(this: var HexagonGrid, column, row: int, hex: Hexagon) =
     # Position hexagon relative to grid
     this.updateHexagonPosition(hex, x, y)
 
-proc removeHexagon*(this: var HexagonGrid, hexagon: Hexagon): bool =
+proc removeHexagon*(this: HexagonGrid, hexagon: Hexagon): bool =
   let cell = this.indexOf(hexagon)
   return cell != NULL_CELL and hexagon == this.removeHexagonAt(cell.x, cell.y)
 
-proc removeHexagonAt*(this: var HexagonGrid, column, row: int): Hexagon =
+proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon =
   var hex = this.getHexagon(column, row)
   if hex == nil:
     return nil
@@ -202,7 +242,7 @@ proc isRowEmpty*(this: HexagonGrid, y: int): bool =
       return false
   return true
 
-proc addRandomRowAtTop*(this: var HexagonGrid, numOfColumns: int) =
+proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: float) =
   ## Adds a new row to the top of the grid.
   var
     col = 0
@@ -240,7 +280,7 @@ proc addRandomRowAtTop*(this: var HexagonGrid, numOfColumns: int) =
       touchingColors.incl(HexagonColor lastColor)
 
     var newColor = getRandomHexagonColorExcluding(touchingColors)
-    var newHexagon = newHexagon(newColor)
+    var newHexagon = newHexagon(newColor, objectScalar)
     # newHexagon.add_to_group(Hexagon.GROUP_HEXAGON_GRID)
     lastColor = ord(newColor)
     reset touchingColors
@@ -283,7 +323,7 @@ proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell] =
     ((if isOffset: column + 1 else: column - 1), row + 1)
   ]
 
-proc getInsertionIndex(this: HexagonGrid, relativePosition: Vector, collided: Cell): Cell =
+proc getInsertionIndex*(this: HexagonGrid, relativePosition: Vector, collided: Cell): Cell =
   result = NULL_CELL
   var smallestDistance: float = INF
 
@@ -324,4 +364,8 @@ proc updateHexagonPositions(this: HexagonGrid) =
 
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int) =
   hexagon.setLocation(this.getHexagonPosition(x, y))
+
+HexagonGrid.render:
+  for hexagon in this.grid.values:
+    hexagon.render(ctx, this.location.x + offsetX, this.location.y + offsetY)
 
