@@ -25,7 +25,7 @@ const
 
 var ALL_COLORS: set[HexagonColor]
 for color in HexagonColor.low .. HexagonColor.high:
-  ALL_COLORS.incl(HexagonColor color)
+  ALL_COLORS.incl(color)
 
 var hexagonImage: Image = nil
 
@@ -33,9 +33,16 @@ type Hexagon* = ref object of Node
   color*: HexagonColor
   rgb: Color
   scale: float
+  collisionRadius: float
+  velocity*: Vector
 
 proc newHexagon*(color: HexagonColor, scale: float): Hexagon =
-  result = Hexagon(color: color, rgb: COLOR_TABLE[color], scale: scale)
+  result = Hexagon(
+    color: color,
+    rgb: COLOR_TABLE[color],
+    scale: scale,
+    collisionRadius: HEXAGON_SIZE.x * scale * 0.9
+  )
   initNode(Node result)
 
   if hexagonImage == nil:
@@ -49,6 +56,10 @@ proc getRandomHexagonColorExcluding*(colors: set[HexagonColor]): HexagonColor =
   if colors == ALL_COLORS:
     raise newException(Exception, "getRandomHexagonColorExcluding given all colors!")
   return sample(ALL_COLORS - colors)
+
+method update*(this: Hexagon, deltaTime: float) =
+  procCall update(Node this, deltaTime)
+  this.move(this.velocity * deltaTime)
 
 Hexagon.renderAsNodeChild:
   hexagonImage.setRGB(this.rgb.r, this.rgb.g, this.rgb.b)
