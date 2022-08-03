@@ -46,7 +46,7 @@ proc newGameLayer*(): GameLayer =
     gamestate.resolution.y * 0.75
   )
 
-  this.maxProjectilePullBackDistance = this.projectileAnchor.x
+  this.maxProjectilePullBackDistance = this.projectileAnchor.x - HEXAGON_SIZE.y * 0.5
   this.minProjectileVelocity = gamestate.resolution.y / 3
   this.maxProjectileVelocity = gamestate.resolution.y * 2
 
@@ -125,7 +125,11 @@ proc onFingerDrag(this: GameLayer, x, y: float) =
   this.touchLoc.y = y
 
   if this.projectile != nil:
-    let dist = vector(x - this.projectileAnchor.x, max(0, y - this.projectileAnchor.y))
+    let dist = vector(
+      x - this.projectileAnchor.x,
+      max(0, y - this.projectileAnchor.y)
+    ).maxMagnitude(this.maxProjectilePullBackDistance)
+
     this.projectile.setLocation(this.projectileAnchor + dist)
 
 proc resetProjectile(this: GameLayer) =
@@ -175,6 +179,30 @@ proc renderIndicator(this: GameLayer, ctx: Target) =
     transparentWhite
   )
 
+proc renderLineToAnchor(this: GameLayer, ctx: Target) =
+  const lineThickness =
+    when isMobile:
+      8.0
+    else:
+      4.0
+
+  if not this.projectileHasBeenFired:
+    discard setLineThickness(lineThickness)
+    ctx.circleFilled(
+      this.projectileAnchor.x,
+      this.projectileAnchor.y,
+      lineThickness * 0.5,
+      slingshotLineColor
+    )
+
+    ctx.line(
+      this.projectileAnchor.x,
+      this.projectileAnchor.y,
+      this.projectile.x,
+      this.projectile.y,
+      slingshotLineColor
+    )
+
 method update*(this: GameLayer, deltaTime: float) =
   procCall update(Layer this, deltaTime)
   if this.projectile != nil:
@@ -188,18 +216,6 @@ GameLayer.renderAsChildOf(Layer):
   this.renderIndicator(ctx)
 
   if this.projectile != nil:
-    if not this.projectileHasBeenFired:
-      when isMobile:
-        discard setLineThickness(8.0)
-      else:
-        discard setLineThickness(4.0)
-
-      ctx.line(
-        this.projectileAnchor.x,
-        this.projectileAnchor.y,
-        this.projectile.x,
-        this.projectile.y,
-        slingshotLineColor
-      )
-    this.projectile.render(ctx, offsetX, offsetY)
+    this.renderLineToAnchor(ctx)
+    this.projectile.render(ctx)
 
