@@ -1,6 +1,6 @@
 import shade
 
-import std/[tables, random, sugar]
+import std/[tables, random]
 
 type HexagonColor* = enum
   RED
@@ -23,9 +23,7 @@ const
   HEXAGON_THREE_QUARTER_HEIGHT* = HEXAGON_SIZE.y * 0.75
   HEXAGON_QUARTER_HEIGHT* = HEXAGON_SIZE.y * 0.25
 
-var ALL_COLORS: set[HexagonColor]
-for color in HexagonColor.low .. HexagonColor.high:
-  ALL_COLORS.incl(color)
+const ALL_COLORS: set[HexagonColor] = { HexagonColor.low .. HexagonColor.high }
 
 var hexagonImage: Image = nil
 
