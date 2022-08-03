@@ -2,7 +2,8 @@ import shade
 
 import
   hexagon_grid as hexagonGridModule,
-  hexagon as hexagonModule
+  hexagon as hexagonModule,
+  background as backgroundModule
 
 const
   isMobile = defined(mobile)
@@ -15,6 +16,7 @@ const
   slingshotLineColor = newColor(247, 114, 41)
 
 type GameLayer = ref object of Layer
+  background: Background
   touchLoc: Vector
   score: int
   grid: HexagonGrid
@@ -36,6 +38,8 @@ proc newGameLayer*(): GameLayer =
   result = GameLayer()
   initLayer(Layer result)
   let this = result
+  
+  this.background = newBackground()
 
   this.projectileAnchor = vector(
     gamestate.resolution.x / 2,
@@ -174,6 +178,7 @@ method update*(this: GameLayer, deltaTime: float) =
     this.projectile.update(deltaTime)
 
 GameLayer.renderAsChildOf(Layer):
+  this.background.render(ctx)
   if this.grid != nil:
     this.grid.render(ctx, offsetX, offsetY)
 
