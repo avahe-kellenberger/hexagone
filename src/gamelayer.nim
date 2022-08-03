@@ -57,7 +57,10 @@ proc newGameLayer*(): GameLayer =
 
     Input.onEvent(FINGERUP):
       let touch = e.tfinger
-      this.onFingerUp(touch.x, touch.y)
+      this.onFingerUp(
+        touch.x * gamestate.resolution.x,
+        touch.y * gamestate.resolution.y
+      )
 
     Input.onEvent(FINGERMOTION):
       let touch = e.tfinger
