@@ -11,7 +11,7 @@ const
   gridPadding = when isMobile: 4 else: 2
   columns = 6
   rows = 5
-  indicatorCircleRadius = 35.0
+  indicatorCircleRadius = when isMobile: 70.0 else: 35.0
   transparentWhite = newColor(255, 255, 255, 100)
   slingshotLineColor = newColor(247, 114, 41)
 
