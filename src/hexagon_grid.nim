@@ -332,18 +332,7 @@ proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell] =
   ]
 
 proc getAvailableAdjacentIndicies(this: HexagonGrid, column, row: int): seq[Cell] =
-  let isOffset: bool = this.isRowOffset(row)
-  result = @[
-    # Top two
-    (column, row - 1),
-    ((if isOffset: column + 1 else: column - 1), row - 1),
-    # Sides
-    (column - 1, row),
-    (column + 1, row),
-    # Bottom two
-    (column, row + 1),
-    ((if isOffset: column + 1 else: column - 1), row + 1)
-  ]
+  result = @(this.getAdjacentIndicies(column, row))
   result = result.filterIt(this.getHexagon(it.x, it.y) == nil)
 
 proc getInsertionIndex*(this: HexagonGrid, projectileLocation: Vector, collided: Cell): Cell =
