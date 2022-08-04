@@ -22,7 +22,7 @@ initEngineSingleton(
   clearColor = newColor(30, 30, 30)
 )
 
-let layer = newGameLayer()
+let layer = newGameLayer(width, height)
 Game.scene.addLayer(layer)
 
 # let song = loadMusic("./assets/music/song.ogg")

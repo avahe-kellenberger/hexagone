@@ -27,21 +27,20 @@ const ALL_COLORS: set[HexagonColor] = { HexagonColor.low .. HexagonColor.high }
 
 var hexagonImage: Image = nil
 
-type Hexagon* = ref object of Node
+type Hexagon* = ref object of PhysicsBody
   color*: HexagonColor
   rgb: Color
   scale: float
-  collisionRadius: float
-  velocity*: Vector
 
-proc newHexagon*(color: HexagonColor, scale: float): Hexagon =
+proc newHexagon*(color: HexagonColor, scale: float, inGrid: bool): Hexagon =
   result = Hexagon(
+    kind: if inGrid: PhysicsBodyKind.STATIC else: PhysicsBodyKind.KINEMATIC,
     color: color,
     rgb: COLOR_TABLE[color],
-    scale: scale,
-    collisionRadius: HEXAGON_SIZE.x * scale * 0.9
+    scale: scale
   )
-  initNode(Node result)
+  var collisionShape = newCollisionShape(newCircle(VECTOR_ZERO, HEXAGON_HALF_WIDTH * scale * 0.9))
+  initPhysicsBody(PhysicsBody result, collisionShape)
 
   if hexagonImage == nil:
     let (_, image) = Images.loadImage(HEXAGON_IMAGE_PATH)
@@ -55,11 +54,7 @@ proc getRandomHexagonColorExcluding*(colors: set[HexagonColor]): HexagonColor =
     raise newException(Exception, "getRandomHexagonColorExcluding given all colors!")
   return sample(ALL_COLORS - colors)
 
-method update*(this: Hexagon, deltaTime: float) =
-  procCall update(Node this, deltaTime)
-  this.move(this.velocity * deltaTime)
-
-Hexagon.renderAsNodeChild:
+Hexagon.renderAsChildOf(PhysicsBody):
   hexagonImage.setRGB(this.rgb.r, this.rgb.g, this.rgb.b)
   hexagonImage.blitScale(nil, ctx, this.x + offsetX, this.y + offsetY, this.scale, this.scale)
 

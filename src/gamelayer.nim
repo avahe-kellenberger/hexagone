@@ -6,6 +6,7 @@ import
   background as backgroundModule
 
 const
+  fragShaderPath = "./assets/shaders/gameplay_bg.frag"
   isMobile = defined(mobile)
   paddingFromSides = when isMobile: vector(104, 16) else: vector(52, 8)
   gridPadding = when isMobile: 4 else: 2
@@ -15,7 +16,7 @@ const
   transparentWhite = newColor(255, 255, 255, 100)
   slingshotLineColor = newColor(247, 114, 41)
 
-type GameLayer = ref object of Layer
+type GameLayer = ref object of PhysicsLayer
   background: Background
   touchLoc: Vector
   score: int
@@ -34,12 +35,12 @@ proc onFingerUp(this: GameLayer, x, y: float)
 proc onFingerDrag(this: GameLayer, x, y: float)
 proc resetGame(this: GameLayer)
 
-proc newGameLayer*(): GameLayer =
+proc newGameLayer*(width, height: int): GameLayer =
   result = GameLayer()
-  initLayer(Layer result)
+  initPhysicsLayer(PhysicsLayer result, newSpatialGrid(1, 2, width), VECTOR_ZERO)
   let this = result
   
-  this.background = newBackground()
+  this.background = newBackground(fragShaderPath)
 
   this.projectileAnchor = vector(
     gamestate.resolution.x / 2,
@@ -136,18 +137,21 @@ proc resetProjectile(this: GameLayer) =
   if this.projectile != nil:
     this.removeChild(this.projectile)
   
-  this.projectile = newHexagon(getRandomHexagonColor(), this.gameobjectsScalar)
+  this.projectile = newHexagon(getRandomHexagonColor(), this.gameobjectsScalar, false)
   this.projectile.setLocation(this.projectileAnchor)
   this.projectileBounces = 0
   this.projectileHasBeenFired = false
+  this.addChild(this.projectile)
 
 proc resetGame(this: GameLayer) =
   this.score = 0
   let gridWidthInPixels = widthInPixels(columns, rows, gridPadding)
   this.gameobjectsScalar = (gamestate.resolution.x - paddingFromSides.x * 2) / gridWidthInPixels
-  this.grid = createRandomHexagonGrid(columns, rows, gridPadding, this.gameobjectsScalar)
-  this.grid.location = paddingFromSides
-  
+  this.grid = createRandomHexagonGrid(paddingFromSides, columns, rows, gridPadding, this.gameobjectsScalar)
+  # Add all grid hexagons to the physics layer.
+  for hexagon in this.grid.values():
+    this.addChild(hexagon)
+
   this.resetProjectile()
 
 proc renderIndicator(this: GameLayer, ctx: Target) =
@@ -203,19 +207,10 @@ proc renderLineToAnchor(this: GameLayer, ctx: Target) =
       slingshotLineColor
     )
 
-method update*(this: GameLayer, deltaTime: float) =
-  procCall update(Layer this, deltaTime)
-  if this.projectile != nil:
-    this.projectile.update(deltaTime)
 
-GameLayer.renderAsChildOf(Layer):
+GameLayer.renderAsChildOf(PhysicsLayer):
   this.background.render(ctx)
-  if this.grid != nil:
-    this.grid.render(ctx, offsetX, offsetY)
-
+  procCall render(PhysicsLayer this, ctx, offsetX, offsetY)
   this.renderIndicator(ctx)
-
-  if this.projectile != nil:
-    this.renderLineToAnchor(ctx)
-    this.projectile.render(ctx)
+  this.renderLineToAnchor(ctx)
 

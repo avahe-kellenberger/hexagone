@@ -7,7 +7,8 @@ import hexagon as hexagonModule
 type
   Cell* = tuple[x: int, y: int]
   HexagonGrid* = ref object
-    location*: Vector
+    location: Vector
+    bounds*: AABB
     columnOffset: int
     # Whether the first row is offset
     isFirstRowOffset: bool
@@ -27,18 +28,25 @@ proc isRowEmpty*(this: HexagonGrid, y: int): bool
 proc floodfill(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: HexagonColor)
 proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell]
 proc getHexagonPosition(this: HexagonGrid, column, row: int): Vector
+proc updateBounds(this: HexagonGrid)
 
-proc newHexagonGrid(width, height, padding: int, hexagonSize: Vector): HexagonGrid =
+proc newHexagonGrid(location: Vector, width, height, padding: int, hexagonSize: Vector): HexagonGrid =
   if width < 1 or height < 1:
     raise newException(Exception, "Width and height of HexagonGrid must be > 0")
 
-  result = HexagonGrid()
+  result = HexagonGrid(location: location)
   result.hexagonSize = hexagonSize
   result.padding = padding
   result.grid = newSeq2D[Hexagon](width, height)
 
-proc createRandomHexagonGrid*(width, height, padding: int, objectScalar: float): HexagonGrid =
-  result = newHexagonGrid(width, height, padding, HEXAGON_SIZE * objectScalar)
+proc createRandomHexagonGrid*(
+  location: Vector,
+  width: int,
+  height: int,
+  padding: int,
+  objectScalar: float
+): HexagonGrid =
+  result = newHexagonGrid(location, width, height, padding, HEXAGON_SIZE * objectScalar)
   var
     lastColor = getRandomHexagonColor()
     touchingColors: set[HexagonColor]
@@ -70,9 +78,19 @@ proc createRandomHexagonGrid*(width, height, padding: int, objectScalar: float):
       let newColor = getRandomHexagonColorExcluding(touchingColors)
       reset touchingColors
 
-      let hexagon = newHexagon(newColor, objectScalar)
+      let hexagon = newHexagon(newColor, objectScalar, true)
       result.setHexagon(col, row, hexagon)
       lastColor = newColor
+
+  result.updateBounds()
+
+proc getLocation*(this: HexagonGrid): Vector =
+  this.location
+
+proc setLocation*(this: HexagonGrid, location: Vector) =
+  this.location = location
+  this.updateHexagonPositions()
+  this.updateBounds()
 
 proc width*(this: HexagonGrid): int =
   return this.grid.width
@@ -138,9 +156,6 @@ proc setHexagon(this: HexagonGrid, column, row: int, hex: Hexagon) =
   elif (y + 1) > gridHeight:
     shiftHeight = y - gridHeight + 1
 
-  # TODO: ?
-  # this.add_child(hex)
-
   if shiftWidth != 0 or shiftHeight != 0:
     # Resize array and shift everything as needed
     var
@@ -166,13 +181,13 @@ proc removeHexagon*(this: HexagonGrid, hexagon: Hexagon): bool =
   return cell != NULL_CELL and hexagon == this.removeHexagonAt(cell.x, cell.y)
 
 proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon =
-  var hex = this.getHexagon(column, row)
-  if hex == nil:
+  result = this.getHexagon(column, row)
+  if result == nil:
     return nil
 
-  hex.move(this.location)
+  result.move(this.location)
   # TODO: ?
-  # this.remove_child(hex)
+  # this.remove_child(result)
 
   this.grid[column, row] = nil
 
@@ -228,7 +243,7 @@ proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon =
     this.grid = newArray
     this.updateHexagonPositions()
 
-  return hex
+  this.updateBounds()
 
 proc isColumnEmpty*(this: HexagonGrid, x: int): bool =
   for y in 0 ..< this.grid.height:
@@ -280,8 +295,7 @@ proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: floa
       touchingColors.incl(HexagonColor lastColor)
 
     var newColor = getRandomHexagonColorExcluding(touchingColors)
-    var newHexagon = newHexagon(newColor, objectScalar)
-    # newHexagon.add_to_group(Hexagon.GROUP_HEXAGON_GRID)
+    var newHexagon = newHexagon(newColor, objectScalar, true)
     lastColor = ord(newColor)
     reset touchingColors
 
@@ -289,6 +303,8 @@ proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: floa
 
     rowBelow = 1
     inc col
+
+  this.updateBounds()
 
 proc floodfill*(
   this: HexagonGrid,
@@ -357,6 +373,8 @@ proc getHexagonPosition(this: HexagonGrid, column, row: int): Vector =
   result.x += this.padding * column + halfWidth
   result.y += this.padding * row + (spriteHeight * 0.5)
 
+  result += this.location
+
 proc updateHexagonPositions(this: HexagonGrid) =
   for x, y, hexagon in this.grid.items:
     if hexagon != nil:
@@ -364,6 +382,18 @@ proc updateHexagonPositions(this: HexagonGrid) =
 
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int) =
   hexagon.setLocation(this.getHexagonPosition(x, y))
+
+proc updateBounds(this: HexagonGrid) =
+  this.bounds = aabb(
+    this.location.x,
+    this.location.y,
+    this.location.x + widthInPixels(this.width, this.height, this.padding),
+    this.location.y + heightInPixels(this.height, this.padding)
+  )
+
+iterator values*(this: HexagonGrid): Hexagon =
+  for hexagon in this.grid.values:
+    yield hexagon
 
 HexagonGrid.render:
   for hexagon in this.grid.values:

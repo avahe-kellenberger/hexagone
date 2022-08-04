@@ -1,14 +1,11 @@
 import shade
 
-# Load a shader
-const
-  fragShaderPath = "./assets/shaders/gameplay_bg.frag"
-  vertShaderPath = "./assets/shaders/common.vert"
+const vertShaderPath = "./assets/shaders/common.vert"
 
 type Background* = object
   shader: Shader
 
-proc newBackground*(): Background =
+proc newBackground*(fragShaderPath: string): Background =
   result.shader = newShader(vertShaderPath, fragShaderPath)
 
 Background.render:
