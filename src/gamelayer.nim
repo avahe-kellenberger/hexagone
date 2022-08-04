@@ -33,6 +33,7 @@ type GameLayer = ref object of PhysicsLayer
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
 proc onFingerDrag(this: GameLayer, x, y: float)
+proc resetProjectile(this: GameLayer)
 proc resetGame(this: GameLayer)
 
 proc newGameLayer*(width, height: int): GameLayer =
@@ -133,6 +134,31 @@ proc onFingerDrag(this: GameLayer, x, y: float) =
 
     this.projectile.setLocation(this.projectileAnchor + dist)
 
+proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
+  if not this.projectileHasBeenFired:
+    return
+
+  if other of Hexagon:
+    let collidedHexagon = Hexagon other
+    let cell = this.grid.indexOf(collidedHexagon)
+    if cell == NULL_CELL:
+      raise newException(Exception, "Collided with hexagon not in the grid!")
+
+    let insertionCell = this.grid.getInsertionIndex(this.projectile.getLocation(), cell)
+    if insertionCell == NULL_CELL:
+      # TODO: When could this happen?
+      return
+    
+    let insertedHexagon = newHexagon(this.projectile.color, this.gameobjectsScalar, true)
+    this.grid.setHexagon(insertionCell.x, insertionCell.y, insertedHexagon)
+    this.addChild(insertedHexagon)
+
+    # TODO: Break off hexagons if needed, play respective sound effect
+    # TODO: Check game has ended
+    # TODO: Check if we need to make a new row at top
+    
+    this.resetProjectile()
+
 proc resetProjectile(this: GameLayer) =
   if this.projectile != nil:
     this.removeChild(this.projectile)
@@ -141,6 +167,11 @@ proc resetProjectile(this: GameLayer) =
   this.projectile.setLocation(this.projectileAnchor)
   this.projectileBounces = 0
   this.projectileHasBeenFired = false
+  this.projectile.addCollisionListener(
+    proc(thisBody, other: PhysicsBody, collisionResult: CollisionResult, gravityNormal: Vector): bool =
+      this.onProjectileCollision(other)
+
+  )
   this.addChild(this.projectile)
 
 proc resetGame(this: GameLayer) =

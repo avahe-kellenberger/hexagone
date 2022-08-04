@@ -1,6 +1,6 @@
 import shade
 
-import std/[sets]
+import std/[sets, sequtils]
 import seq2d
 import hexagon as hexagonModule
 
@@ -8,7 +8,6 @@ type
   Cell* = tuple[x: int, y: int]
   HexagonGrid* = ref object
     location: Vector
-    bounds*: AABB
     columnOffset: int
     # Whether the first row is offset
     isFirstRowOffset: bool
@@ -19,16 +18,16 @@ type
 const NULL_CELL* = (-1, -1)
 
 proc getHexagon(this: HexagonGrid, column, row: int): Hexagon
-proc setHexagon(this: HexagonGrid, column, row: int, hex: Hexagon)
+proc setHexagon*(this: HexagonGrid, column, row: int, hex: Hexagon)
 proc updateHexagonPositions(this: HexagonGrid)
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int)
 proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon
 proc isColumnEmpty*(this: HexagonGrid, x: int): bool
 proc isRowEmpty*(this: HexagonGrid, y: int): bool
 proc floodfill(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: HexagonColor)
+proc getAvailableAdjacentIndicies(this: HexagonGrid, column, row: int): seq[Cell]
 proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell]
 proc getHexagonPosition(this: HexagonGrid, column, row: int): Vector
-proc updateBounds(this: HexagonGrid)
 
 proc newHexagonGrid(location: Vector, width, height, padding: int, hexagonSize: Vector): HexagonGrid =
   if width < 1 or height < 1:
@@ -82,15 +81,12 @@ proc createRandomHexagonGrid*(
       result.setHexagon(col, row, hexagon)
       lastColor = newColor
 
-  result.updateBounds()
-
 proc getLocation*(this: HexagonGrid): Vector =
   this.location
 
 proc setLocation*(this: HexagonGrid, location: Vector) =
   this.location = location
   this.updateHexagonPositions()
-  this.updateBounds()
 
 proc width*(this: HexagonGrid): int =
   return this.grid.width
@@ -111,7 +107,7 @@ func heightInPixels*(rows, padding: int): float =
 proc isRowOffset(this: HexagonGrid, row: int): bool =
   return ((row and 1) == 0) == this.isFirstRowOffset
 
-proc indexOf(this: HexagonGrid, hex: Hexagon): Cell =
+proc indexOf*(this: HexagonGrid, hex: Hexagon): Cell =
   # TODO optimize this lookup (maybe a map or store the cell in the hexagon)
   for x, y, hexagon in this.grid.items:
     if hexagon == hex:
@@ -123,7 +119,7 @@ proc getHexagon(this: HexagonGrid, column, row: int): Hexagon =
     return nil
   return this.grid[column, row]
 
-proc setHexagon(this: HexagonGrid, column, row: int, hex: Hexagon) =
+proc setHexagon*(this: HexagonGrid, column, row: int, hex: Hexagon) =
   if hex == nil:
     return
 
@@ -243,8 +239,6 @@ proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon =
     this.grid = newArray
     this.updateHexagonPositions()
 
-  this.updateBounds()
-
 proc isColumnEmpty*(this: HexagonGrid, x: int): bool =
   for y in 0 ..< this.grid.height:
     if this.grid[x, y] != nil:
@@ -304,8 +298,6 @@ proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: floa
     rowBelow = 1
     inc col
 
-  this.updateBounds()
-
 proc floodfill*(
   this: HexagonGrid,
   hexagon: Hexagon,
@@ -339,22 +331,33 @@ proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell] =
     ((if isOffset: column + 1 else: column - 1), row + 1)
   ]
 
-proc getInsertionIndex*(this: HexagonGrid, relativePosition: Vector, collided: Cell): Cell =
+proc getAvailableAdjacentIndicies(this: HexagonGrid, column, row: int): seq[Cell] =
+  let isOffset: bool = this.isRowOffset(row)
+  result = @[
+    # Top two
+    (column, row - 1),
+    ((if isOffset: column + 1 else: column - 1), row - 1),
+    # Sides
+    (column - 1, row),
+    (column + 1, row),
+    # Bottom two
+    (column, row + 1),
+    ((if isOffset: column + 1 else: column - 1), row + 1)
+  ]
+  result = result.filterIt(this.getHexagon(it.x, it.y) == nil)
+
+proc getInsertionIndex*(this: HexagonGrid, projectileLocation: Vector, collided: Cell): Cell =
   result = NULL_CELL
-  var smallestDistance: float = INF
-
-  let adjacentIndices = this.getAdjacentIndicies(collided.x, collided.y)
+  var minDistance = Inf
+  let adjacentIndices = this.getAvailableAdjacentIndicies(collided.x, collided.y)
   for cell in adjacentIndices:
-    if this.getHexagon(cell.x, cell.y) != nil:
-      continue
-
     let
       hexPosition = this.getHexagonPosition(cell.x, cell.y)
-      dist = hexPosition.distanceSquared(relativePosition)
+      dist = hexPosition.distanceSquared(projectileLocation)
 
-    if smallestDistance > dist:
+    if dist < minDistance:
       result = cell
-      smallestDistance = dist
+      minDistance = dist
 
 proc getHexagonPosition(this: HexagonGrid, column, row: int): Vector =
   let
@@ -382,14 +385,6 @@ proc updateHexagonPositions(this: HexagonGrid) =
 
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int) =
   hexagon.setLocation(this.getHexagonPosition(x, y))
-
-proc updateBounds(this: HexagonGrid) =
-  this.bounds = aabb(
-    this.location.x,
-    this.location.y,
-    this.location.x + widthInPixels(this.width, this.height, this.padding),
-    this.location.y + heightInPixels(this.height, this.padding)
-  )
 
 iterator values*(this: HexagonGrid): Hexagon =
   for hexagon in this.grid.values:
