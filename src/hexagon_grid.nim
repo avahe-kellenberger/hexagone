@@ -298,23 +298,19 @@ proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: floa
     rowBelow = 1
     inc col
 
-proc floodfill*(
-  this: HexagonGrid,
-  hexagon: Hexagon,
-  addedHexagons: var HashSet[Hexagon],
-  color: HexagonColor
-) =
+proc floodfill*(this: HexagonGrid, hexagon: Hexagon): HashSet[Hexagon] =
   ## Recursively gets adjacent hexagons of the same color and adds them to the list.
-  if addedHexagons.containsOrIncl(hexagon):
-    let cell = this.indexOf(hexagon)
-    if cell != NULL_CELL:
-      this.floodfill(cell.x, cell.y, addedHexagons, color)
+  result.incl(hexagon)
+  let cell = this.indexOf(hexagon)
+  if cell != NULL_CELL:
+    this.floodfill(cell.x, cell.y, result, hexagon.color)
 
 proc floodfill(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: HexagonColor) =
-  let adjacent = this.getAdjacentIndicies(x, y)
+  let adjacent = this.getAdjacentIndicies(x, y).filterIt(this.getHexagon(it.x, it.y) != nil)
   for cell in adjacent:
     let next = this.getHexagon(cell.x, cell.y)
-    if next != nil and next.color == color and addedHexagons.containsOrIncl(next):
+    if next.color == color and not addedHexagons.contains(next):
+      addedHexagons.incl(next)
       this.floodfill(cell.x, cell.y, addedHexagons, color)
 
 proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell] =

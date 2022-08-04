@@ -1,5 +1,5 @@
 import shade
-import gamelayer
+import gamelayer, sounds
 import std/[random]
 
 randomize()
@@ -25,8 +25,10 @@ initEngineSingleton(
 let layer = newGameLayer(width, height)
 Game.scene.addLayer(layer)
 
-# let song = loadMusic("./assets/music/song.ogg")
-# if song != nil:
-#   play(song)
+let song = loadMusic("./assets/music/song.ogg")
+song.play(0.5)
+
+loadSoundEffects()
 
 Game.start()
+

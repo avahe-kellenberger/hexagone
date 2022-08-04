@@ -3,7 +3,8 @@ import shade
 import
   hexagon_grid as hexagonGridModule,
   hexagon as hexagonModule,
-  background as backgroundModule
+  background as backgroundModule,
+  sounds as soundsModule
 
 const
   fragShaderPath = "./assets/shaders/gameplay_bg.frag"
@@ -33,6 +34,7 @@ type GameLayer = ref object of PhysicsLayer
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
 proc onFingerDrag(this: GameLayer, x, y: float)
+proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int
 proc resetProjectile(this: GameLayer)
 proc resetGame(this: GameLayer)
 
@@ -40,7 +42,7 @@ proc newGameLayer*(width, height: int): GameLayer =
   result = GameLayer()
   initPhysicsLayer(PhysicsLayer result, newSpatialGrid(1, 2, width), VECTOR_ZERO)
   let this = result
-  
+
   this.background = newBackground(fragShaderPath)
 
   this.projectileAnchor = vector(
@@ -154,10 +156,23 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
     this.addChild(insertedHexagon)
 
     # TODO: Break off hexagons if needed, play respective sound effect
+    if this.breakFromGrid(insertedHexagon) > 0:
+      hexagonBreakSfx.play()
+    else:
+      hexagonClickSfx.play()
     # TODO: Check game has ended
     # TODO: Check if we need to make a new row at top
     
     this.resetProjectile()
+
+proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int =
+  var adjacentSimilarHexagons = this.grid.floodfill(hexagon)
+
+  if adjacentSimilarHexagons.len < 3:
+    return 0
+
+  # TODO:
+  return adjacentSimilarHexagons.len
 
 proc resetProjectile(this: GameLayer) =
   if this.projectile != nil:
@@ -238,10 +253,9 @@ proc renderLineToAnchor(this: GameLayer, ctx: Target) =
       slingshotLineColor
     )
 
-
 GameLayer.renderAsChildOf(PhysicsLayer):
   this.background.render(ctx)
-  procCall render(PhysicsLayer this, ctx, offsetX, offsetY)
   this.renderIndicator(ctx)
   this.renderLineToAnchor(ctx)
+  procCall render(PhysicsLayer this, ctx, offsetX, offsetY)
 
