@@ -35,7 +35,7 @@ proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
 proc onFingerDrag(this: GameLayer, x, y: float)
 proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int
-proc resetProjectile(this: GameLayer)
+proc resetProjectile(this: GameLayer, color: int = -1)
 proc resetGame(this: GameLayer)
 
 proc newGameLayer*(width, height: int): GameLayer =
@@ -181,7 +181,7 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
 
     let insertionCell = this.grid.getInsertionIndex(this.projectile.getLocation(), cell)
     if insertionCell == NULL_CELL:
-      # TODO: When could this happen?
+      # When could this happen?
       return
     
     let insertedHexagon = newHexagon(this.projectile.color, this.gameobjectsScalar, true)
@@ -207,11 +207,15 @@ proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int =
   # TODO:
   return adjacentSimilarHexagons.len
 
-proc resetProjectile(this: GameLayer) =
+proc resetProjectile(this: GameLayer, color: int = -1) =
   if this.projectile != nil:
     this.removeChild(this.projectile)
   
-  this.projectile = newHexagon(getRandomHexagonColor(), this.gameobjectsScalar, false)
+  this.projectile = newHexagon(
+    if color < 0: getRandomHexagonColor() else: HexagonColor(color),
+    this.gameobjectsScalar,
+    false
+  )
   this.projectile.setLocation(this.projectileAnchor)
   this.projectileBounces = 0
   this.projectileHasBeenFired = false
@@ -232,6 +236,12 @@ proc resetGame(this: GameLayer) =
     this.addChild(hexagon)
 
   this.resetProjectile()
+
+method update*(this: GameLayer, deltaTime: float) =
+  procCall update(PhysicsLayer this, deltaTime)
+  # Reset projectile if it goes off the bottom of the screen
+  if this.projectile != nil and this.projectileHasBeenFired and this.projectile.y > gamestate.resolution.y:
+    this.resetProjectile(ord this.projectile.color)
 
 proc renderIndicator(this: GameLayer, ctx: Target) =
   when isMobile:
