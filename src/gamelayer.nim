@@ -40,8 +40,41 @@ proc resetGame(this: GameLayer)
 
 proc newGameLayer*(width, height: int): GameLayer =
   result = GameLayer()
-  initPhysicsLayer(PhysicsLayer result, newSpatialGrid(1, 2, width), VECTOR_ZERO)
+  initPhysicsLayer(PhysicsLayer result, newSpatialGrid(1, 2, width + 1), VECTOR_ZERO)
   let this = result
+
+  let wallMaterial = initMaterial(1, 1, 0)
+
+  # Place big rectangles outisde the viewable bounds to act as walls.
+  block:
+    var sideWallAABB = newCollisionShape(
+      aabb(
+        -50,
+        -gamestate.resolution.y * 0.5,
+        50,
+        gamestate.resolution.y * 0.5,
+      ),
+      wallMaterial
+    )
+    let leftWall = newPhysicsBody(PhysicsBodyKind.STATIC, sideWallAABB)
+    leftWall.setLocation(-sideWallAABB.width / 2, sideWallAABB.height / 2)
+    this.addChild(leftWall)
+
+    let rightWall = newPhysicsBody(PhysicsBodyKind.STATIC, sideWallAABB)
+    rightWall.setLocation(gamestate.resolution.x + sideWallAABB.width / 2, sideWallAABB.height / 2)
+    this.addChild(rightWall)
+
+    var topWallAABB = newCollisionShape(
+      aabb(
+        -gamestate.resolution.x / 2,
+        -50,
+        gamestate.resolution.x / 2,
+        50
+      )
+    )
+    let topWall = newPhysicsBody(PhysicsBodyKind.STATIC, topWallAABB)
+    topWall.setLocation(topWallAABB.width / 2, -topWall.height / 2)
+    this.addChild(topWall)
 
   this.background = newBackground(fragShaderPath)
 

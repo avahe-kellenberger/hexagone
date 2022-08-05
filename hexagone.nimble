@@ -21,7 +21,7 @@ task runr, "Runs the program in release mode":
   exec "nim r -d:release -d:collisionIterations:1 -d:defaultAudioFrequency:44100 src/hexagone.nim"
 
 task rund, "Runs the program in debug mode":
-  exec "nim r -d:debug -d:collisionIterations:1 -d:defaultAudioFrequency:44100 src/hexagone.nim"
+  exec "nim r -d:debug -d:collisionOutlines -d:collisionIterations:1 -d:defaultAudioFrequency:44100 src/hexagone.nim"
 
 task run_mobile, "Runs the program in release mode for mobile":
   exec "nim r -d:release -d:mobile -d:collisionIterations:1 -d:defaultAudioFrequency:44100 src/hexagone.nim"
