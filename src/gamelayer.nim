@@ -1,4 +1,7 @@
+import std/random
+
 import shade
+import safeset
 
 import
   hexagon_grid as hexagonGridModule,
@@ -30,6 +33,8 @@ type GameLayer = ref object of PhysicsLayer
   maxProjectilePullBackDistance: float
   minProjectileVelocity: float
   maxProjectileVelocity: float
+  fallingHexagons: SafeSet[Hexagon]
+  tweens: SafeSet[Tween]
 
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
@@ -43,8 +48,6 @@ proc newGameLayer*(width, height: int): GameLayer =
   initPhysicsLayer(PhysicsLayer result, newSpatialGrid(1, 2, width + 1), VECTOR_ZERO)
   let this = result
 
-  let wallMaterial = initMaterial(1, 1, 0)
-
   # Place big rectangles outisde the viewable bounds to act as walls.
   block:
     var sideWallAABB = newCollisionShape(
@@ -54,7 +57,7 @@ proc newGameLayer*(width, height: int): GameLayer =
         50,
         gamestate.resolution.y * 0.5,
       ),
-      wallMaterial
+      PERFECT_MATERIAL
     )
     let leftWall = newPhysicsBody(PhysicsBodyKind.STATIC, sideWallAABB)
     leftWall.setLocation(-sideWallAABB.width / 2, sideWallAABB.height / 2)
@@ -86,6 +89,8 @@ proc newGameLayer*(width, height: int): GameLayer =
   this.maxProjectilePullBackDistance = this.projectileAnchor.x - HEXAGON_SIZE.y * 0.5
   this.minProjectileVelocity = gamestate.resolution.y / 3
   this.maxProjectileVelocity = gamestate.resolution.y * 2
+  this.fallingHexagons = newSafeSet[Hexagon]()
+  this.tweens = newSafeSet[Tween]()
 
   when isMobile:
     Input.onEvent(FINGERDOWN):
@@ -170,33 +175,53 @@ proc onFingerDrag(this: GameLayer, x, y: float) =
     this.projectile.setLocation(this.projectileAnchor + dist)
 
 proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
-  if not this.projectileHasBeenFired:
+  if not this.projectileHasBeenFired or not(other of Hexagon):
     return
 
-  if other of Hexagon:
-    let collidedHexagon = Hexagon other
-    let cell = this.grid.indexOf(collidedHexagon)
-    if cell == NULL_CELL:
-      raise newException(Exception, "Collided with hexagon not in the grid!")
+  let collidedHexagon = Hexagon other
+  let cell = this.grid.indexOf(collidedHexagon)
+  if cell == NULL_CELL:
+    raise newException(Exception, "Collided with hexagon not in the grid!")
 
-    let insertionCell = this.grid.getInsertionIndex(this.projectile.getLocation(), cell)
-    if insertionCell == NULL_CELL:
-      # When could this happen?
-      return
-    
-    let insertedHexagon = newHexagon(this.projectile.color, this.gameobjectsScalar, true)
-    this.grid.setHexagon(insertionCell.x, insertionCell.y, insertedHexagon)
-    this.addChild(insertedHexagon)
+  let insertionCell = this.grid.getInsertionIndex(this.projectile.getLocation(), cell)
+  if insertionCell == NULL_CELL:
+    # When could this happen?
+    return
+  
+  let insertedHexagon = newHexagon(this.projectile.color, this.gameobjectsScalar, true)
 
-    # TODO: Break off hexagons if needed, play respective sound effect
-    if this.breakFromGrid(insertedHexagon) > 0:
-      hexagonBreakSfx.play()
-    else:
-      hexagonClickSfx.play()
-    # TODO: Check game has ended
-    # TODO: Check if we need to make a new row at top
-    
-    this.resetProjectile()
+  this.resetProjectile()
+
+  this.grid.setHexagon(insertionCell.x, insertionCell.y, insertedHexagon)
+  this.addChild(insertedHexagon)
+
+  # TODO: Break off hexagons if needed, play respective sound effect
+  if this.breakFromGrid(insertedHexagon) > 0:
+    hexagonBreakSfx.play()
+  else:
+    hexagonClickSfx.play()
+  # TODO: Check game has ended
+  # TODO: Check if we need to make a new row at top
+
+proc dropFromGrid(this: GameLayer, hexagons: HashSet[Hexagon]) =
+  let tween: Tween = newTween(
+      1.0,
+      (
+        proc(thisTween: Tween, deltaTime: float) =
+          for hexagon in hexagons:
+            hexagon.alpha = 1.0 - min(1.0, thisTween.elapsedTime / thisTween.duration)
+      ),
+      proc(thisTween: Tween) =
+        this.tweens.remove(thisTween)
+        for hexagon in hexagons:
+          this.fallingHexagons.remove(hexagon)
+    )
+  this.tweens.add(tween)
+
+  for hexagon in hexagons:
+    this.removeChild(hexagon)
+    discard this.grid.removeHexagon(hexagon)
+    this.fallingHexagons.add(hexagon)
 
 proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int =
   var adjacentSimilarHexagons = this.grid.floodfill(hexagon)
@@ -204,7 +229,14 @@ proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int =
   if adjacentSimilarHexagons.len < 3:
     return 0
 
-  # TODO:
+  this.dropFromGrid(adjacentSimilarHexagons)
+  # TODO: Set rand velocity
+  for hexagon in adjacentSimilarHexagons:
+    hexagon.velocity = vector(
+      0,
+      100
+    )
+
   return adjacentSimilarHexagons.len
 
 proc resetProjectile(this: GameLayer, color: int = -1) =
@@ -242,6 +274,12 @@ method update*(this: GameLayer, deltaTime: float) =
   # Reset projectile if it goes off the bottom of the screen
   if this.projectile != nil and this.projectileHasBeenFired and this.projectile.y > gamestate.resolution.y:
     this.resetProjectile(ord this.projectile.color)
+
+  for tween in this.tweens:
+    tween.update(deltaTime)
+
+  for hexagon in this.fallingHexagons:
+    hexagon.update(deltaTime)
 
 proc renderIndicator(this: GameLayer, ctx: Target) =
   when isMobile:
@@ -300,5 +338,10 @@ GameLayer.renderAsChildOf(PhysicsLayer):
   this.background.render(ctx)
   this.renderIndicator(ctx)
   this.renderLineToAnchor(ctx)
+
+  # Render all children of the layer
   procCall render(PhysicsLayer this, ctx, offsetX, offsetY)
+
+  for hexagon in this.fallingHexagons:
+    hexagon.render(ctx, offsetX, offsetY)
 

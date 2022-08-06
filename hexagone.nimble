@@ -11,6 +11,7 @@ bin           = @["hexagone"]
 # Dependencies
 
 requires "nim >= 1.6.6"
+requires "safeset >= 0.1.0"
 
 import os
 

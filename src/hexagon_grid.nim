@@ -181,10 +181,6 @@ proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon =
   if result == nil:
     return nil
 
-  result.move(this.location)
-  # TODO: ?
-  # this.remove_child(result)
-
   this.grid[column, row] = nil
 
   let
