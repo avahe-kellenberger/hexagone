@@ -17,14 +17,14 @@ type
 
 const NULL_CELL* = (-1, -1)
 
-proc getHexagon(this: HexagonGrid, column, row: int): Hexagon
+proc getHexagon*(this: HexagonGrid, column, row: int): Hexagon
 proc setHexagon*(this: HexagonGrid, column, row: int, hex: Hexagon)
 proc updateHexagonPositions(this: HexagonGrid)
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int)
 proc removeHexagonAt*(this: HexagonGrid, column, row: int): Hexagon
 proc isColumnEmpty*(this: HexagonGrid, x: int): bool
 proc isRowEmpty*(this: HexagonGrid, y: int): bool
-proc floodfill(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: HexagonColor)
+proc floodfill*(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: int = -1)
 proc getAvailableAdjacentIndicies(this: HexagonGrid, column, row: int): seq[Cell]
 proc getAdjacentIndicies(this: HexagonGrid, column, row: int): array[6, Cell]
 proc getHexagonPosition(this: HexagonGrid, column, row: int): Vector
@@ -123,7 +123,7 @@ proc indexOf*(this: HexagonGrid, hex: Hexagon): Cell =
       return (x, y)
   return NULL_CELL
 
-proc getHexagon(this: HexagonGrid, column, row: int): Hexagon =
+proc getHexagon*(this: HexagonGrid, column, row: int): Hexagon =
   if column < 0 or column >= this.width or row < 0 or row >= this.height:
     return nil
   return this.grid[column, row]
@@ -308,13 +308,13 @@ proc floodfill*(this: HexagonGrid, hexagon: Hexagon): HashSet[Hexagon] =
   result.incl(hexagon)
   let cell = this.indexOf(hexagon)
   if cell != NULL_CELL:
-    this.floodfill(cell.x, cell.y, result, hexagon.color)
+    this.floodfill(cell.x, cell.y, result, ord hexagon.color)
 
-proc floodfill(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: HexagonColor) =
+proc floodfill*(this: HexagonGrid, x, y: int, addedHexagons: var HashSet[Hexagon], color: int = -1) =
   let adjacent = this.getAdjacentIndicies(x, y).filterIt(this.getHexagon(it.x, it.y) != nil)
   for cell in adjacent:
     let next = this.getHexagon(cell.x, cell.y)
-    if next.color == color and not addedHexagons.contains(next):
+    if (color == -1 or next.color == HexagonColor(color)) and not addedHexagons.contains(next):
       addedHexagons.incl(next)
       this.floodfill(cell.x, cell.y, addedHexagons, color)
 
@@ -375,6 +375,10 @@ proc updateHexagonPositions(this: HexagonGrid) =
 
 proc updateHexagonPosition(this: HexagonGrid, hexagon: Hexagon, x, y: int) =
   hexagon.setLocation(this.getHexagonPosition(x, y))
+
+iterator items*(this: HexagonGrid): tuple[x: int, y: int, value: Hexagon] =
+  for item in this.grid.items:
+    yield item
 
 iterator values*(this: HexagonGrid): Hexagon =
   for hexagon in this.grid.values:

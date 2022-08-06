@@ -242,7 +242,7 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
     this.addChild(this.createGridMovementTween())
     this.numShotsTaken = 0
 
-proc dropFromGrid(this: GameLayer, hexagons: HashSet[Hexagon]) =
+proc dropFromGrid(this: GameLayer, hexagons: HashSet[Hexagon] | seq[Hexagon]) =
   let tween: Tween = newTween(
     1.0,
     (
@@ -280,7 +280,17 @@ proc breakFromGrid(this: GameLayer, hexagon: Hexagon, velocity: Vector): int =
       random(velocity.y / 4, velocity.y / 2)
     )
 
-  return adjacentSimilarHexagons.len
+  var reachableHexagons = initHashSet[Hexagon](8)
+  for x in 0 ..< this.grid.width:
+    this.grid.floodfill(x, 0, reachableHexagons)
+
+  var danglers: seq[Hexagon]
+  for hexagon in this.grid.values():
+    if hexagon != nil and hexagon notin reachableHexagons:
+      danglers.add(hexagon)
+  this.dropFromGrid(danglers)
+
+  return adjacentSimilarHexagons.len + danglers.len
 
 proc resetProjectile(this: GameLayer, color: int = -1) =
   if this.projectile != nil:
