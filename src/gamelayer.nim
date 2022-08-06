@@ -22,21 +22,24 @@ const
   transparentWhite = newColor(255, 255, 255, 100)
   slingshotLineColor = newColor(247, 114, 41)
 
-type GameLayer = ref object of PhysicsLayer
-  background: Background
-  touchLoc: Vector
-  score: int
-  grid: HexagonGrid
-  gameobjectsScalar: float
-  projectileAnchor: Vector
-  projectile: Hexagon
-  projectileBounces: int
-  projectileHasBeenFired: bool
-  numShotsTaken: int
-  maxProjectilePullBackDistance: float
-  minProjectileVelocity: float
-  maxProjectileVelocity: float
-  fallingHexagons: SafeSet[Hexagon]
+type
+  Iterable[T] = concept i
+    typeof(i.items) is T
+  GameLayer = ref object of PhysicsLayer
+    background: Background
+    touchLoc: Vector
+    score: int
+    grid: HexagonGrid
+    gameobjectsScalar: float
+    projectileAnchor: Vector
+    projectile: Hexagon
+    projectileBounces: int
+    projectileHasBeenFired: bool
+    numShotsTaken: int
+    maxProjectilePullBackDistance: float
+    minProjectileVelocity: float
+    maxProjectileVelocity: float
+    fallingHexagons: SafeSet[Hexagon]
 
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
@@ -242,7 +245,7 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
     this.addChild(this.createGridMovementTween())
     this.numShotsTaken = 0
 
-proc dropFromGrid(this: GameLayer, hexagons: HashSet[Hexagon] | seq[Hexagon]) =
+proc dropFromGrid(this: GameLayer, hexagons: Iterable[Hexagon]) =
   let tween: Tween = newTween(
     1.0,
     (
