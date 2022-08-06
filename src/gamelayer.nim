@@ -17,6 +17,7 @@ const
   gridPadding = when isMobile: 4 else: 2
   columns = 6
   rows = 5
+  shotsTillNewRow = columns * 4
   indicatorCircleRadius = when isMobile: 70.0 else: 35.0
   transparentWhite = newColor(255, 255, 255, 100)
   slingshotLineColor = newColor(247, 114, 41)
@@ -31,11 +32,11 @@ type GameLayer = ref object of PhysicsLayer
   projectile: Hexagon
   projectileBounces: int
   projectileHasBeenFired: bool
+  numShotsTaken: int
   maxProjectilePullBackDistance: float
   minProjectileVelocity: float
   maxProjectileVelocity: float
   fallingHexagons: SafeSet[Hexagon]
-  tweens: SafeSet[Tween]
 
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
@@ -91,7 +92,6 @@ proc newGameLayer*(width, height: int): GameLayer =
   this.minProjectileVelocity = gamestate.resolution.y / 3
   this.maxProjectileVelocity = gamestate.resolution.y * 2
   this.fallingHexagons = newSafeSet[Hexagon]()
-  this.tweens = newSafeSet[Tween]()
 
   when isMobile:
     Input.onEvent(FINGERDOWN):
@@ -153,12 +153,21 @@ proc onFingerUp(this: GameLayer, x, y: float) =
     this.projectile.setLocation(this.projectileAnchor)
   else:
     # Launch projectile
+    this.numShotsTaken += 1
     let newVelocityMagnitude = max(
       this.minProjectileVelocity,
       (dist.getMagnitude() / this.maxProjectilePullBackDistance) * this.maxProjectileVelocity
     )
     this.projectile.velocity = dist.normalize(newVelocityMagnitude)
     this.projectileHasBeenFired = true
+
+proc hasHexagonGridPassedIndicator(this: GameLayer): bool =
+  let gridBottom = this.grid.getLocation().y + this.grid.heightInPixels() * this.gameobjectsScalar
+  return  gridBottom >= this.projectileAnchor.y - HEXAGON_SIZE.y
+
+proc endGame(this: GameLayer) =
+  # TODO: Game lost things
+  this.removeChild(this.projectile)
 
 proc onFingerDrag(this: GameLayer, x, y: float) =
   if this.projectileHasBeenFired:
@@ -174,6 +183,20 @@ proc onFingerDrag(this: GameLayer, x, y: float) =
     ).maxMagnitude(this.maxProjectilePullBackDistance)
 
     this.projectile.setLocation(this.projectileAnchor + dist)
+
+proc createGridMovementTween(this: GameLayer): Tween =
+  result = newTween(
+    0.5,
+    (
+      proc(thisTween: Tween, deltaTime: float) =
+        let
+          gridLocY = this.grid.getLocation().y
+          ratio = min(1.0, thisTween.elapsedTime / thisTween.duration)
+          newY = easeInAndOutQuadratic(gridLocY, paddingFromSides.y, ratio)
+        this.grid.translateY(newY - gridLocY)
+    ),
+    proc(thisTween: Tween) = this.removeChild(thisTween)
+  )
 
 proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
   if not this.projectileHasBeenFired or not(other of Hexagon):
@@ -202,28 +225,37 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
   this.grid.setHexagon(insertionCell.x, insertionCell.y, insertedHexagon)
   this.addChild(insertedHexagon)
 
-  # TODO: Break off hexagons if needed, play respective sound effect
   if this.breakFromGrid(insertedHexagon, projectileVel) > 0:
     hexagonBreakSfx.play()
   else:
     hexagonClickSfx.play()
-  # TODO: Check game has ended
-  # TODO: Check if we need to make a new row at top
+
+  if this.hasHexagonGridPassedIndicator():
+    # Player has lost the game
+    this.endGame()
+    return
+
+  # Check if we need to make a new row at top
+  if this.numShotsTaken >= shotsTillNewRow:
+    for hexagon in this.grid.addRandomRowAtTop(columns, this.gameobjectsScalar):
+      this.addChild(hexagon)
+    this.addChild(this.createGridMovementTween())
+    this.numShotsTaken = 0
 
 proc dropFromGrid(this: GameLayer, hexagons: HashSet[Hexagon]) =
   let tween: Tween = newTween(
-      1.0,
-      (
-        proc(thisTween: Tween, deltaTime: float) =
-          for hexagon in hexagons:
-            hexagon.alpha = 1.0 - min(1.0, thisTween.elapsedTime / thisTween.duration)
-      ),
-      proc(thisTween: Tween) =
-        this.tweens.remove(thisTween)
+    1.0,
+    (
+      proc(thisTween: Tween, deltaTime: float) =
         for hexagon in hexagons:
-          this.fallingHexagons.remove(hexagon)
-    )
-  this.tweens.add(tween)
+          hexagon.alpha = 1.0 - min(1.0, thisTween.elapsedTime / thisTween.duration)
+    ),
+    proc(thisTween: Tween) =
+      this.removeChild(thisTween)
+      for hexagon in hexagons:
+        this.fallingHexagons.remove(hexagon)
+  )
+  this.addChild(tween)
 
   for hexagon in hexagons:
     this.removeChild(hexagon)
@@ -285,9 +317,6 @@ method update*(this: GameLayer, deltaTime: float) =
   # Reset projectile if it goes off the bottom of the screen
   if this.projectile != nil and this.projectileHasBeenFired and this.projectile.y > gamestate.resolution.y:
     this.resetProjectile(ord this.projectile.color)
-
-  for tween in this.tweens:
-    tween.update(deltaTime)
 
   for hexagon in this.fallingHexagons:
     hexagon.velocity.y += gravity * deltaTime

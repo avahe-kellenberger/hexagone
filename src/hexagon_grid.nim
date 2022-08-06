@@ -88,6 +88,12 @@ proc setLocation*(this: HexagonGrid, location: Vector) =
   this.location = location
   this.updateHexagonPositions()
 
+proc translateY*(this: HexagonGrid, dy: float) =
+  this.location.y += dy
+  for hexagon in this.grid.values():
+    if hexagon != nil:
+      hexagon.y = hexagon.y + dy
+
 proc width*(this: HexagonGrid): int =
   return this.grid.width
 
@@ -103,6 +109,9 @@ func heightInPixels*(rows, padding: int): float =
   result = rows * (
     HEXAGON_THREE_QUARTER_HEIGHT + padding
   ) + HEXAGON_QUARTER_HEIGHT - padding
+
+func heightInPixels*(this: HexagonGrid): float =
+  return heightInPixels(this.height, this.padding)
 
 proc isRowOffset(this: HexagonGrid, row: int): bool =
   return ((row and 1) == 0) == this.isFirstRowOffset
@@ -247,7 +256,7 @@ proc isRowEmpty*(this: HexagonGrid, y: int): bool =
       return false
   return true
 
-proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: float) =
+iterator addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: float): Hexagon =
   ## Adds a new row to the top of the grid.
   var
     col = 0
@@ -281,7 +290,7 @@ proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: floa
     if downRightColor != -1:
       touchingColors.incl(HexagonColor downRightColor)
 
-    if lastColor == -1:
+    if lastColor != -1:
       touchingColors.incl(HexagonColor lastColor)
 
     var newColor = getRandomHexagonColorExcluding(touchingColors)
@@ -293,6 +302,8 @@ proc addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: floa
 
     rowBelow = 1
     inc col
+
+    yield newHexagon
 
 proc floodfill*(this: HexagonGrid, hexagon: Hexagon): HashSet[Hexagon] =
   ## Recursively gets adjacent hexagons of the same color and adds them to the list.
