@@ -259,14 +259,13 @@ proc isRowEmpty*(this: HexagonGrid, y: int): bool =
 iterator addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: float): Hexagon =
   ## Adds a new row to the top of the grid.
   var
-    col = 0
     lastColor = -1
     touchingColors: set[HexagonColor]
     rowBelow: int = 0
 
-  while col < numOfColumns:
+  for x in 0 ..< numOfColumns:
     # Must re-evaluate column offset each loop (do not put in range!)
-    col -= this.columnOffset
+    let col = x - this.columnOffset
 
     # Find colors of the below hexagons.
     var downLeftColor = -1
@@ -301,7 +300,6 @@ iterator addRandomRowAtTop*(this: HexagonGrid, numOfColumns: int, objectScalar: 
     this.setHexagon(col, rowBelow - 1, newHexagon)
 
     rowBelow = 1
-    inc col
 
     yield newHexagon
 
