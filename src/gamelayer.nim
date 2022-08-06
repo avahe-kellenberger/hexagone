@@ -10,6 +10,7 @@ import
   sounds as soundsModule
 
 const
+  gravity = 1000.0
   fragShaderPath = "./assets/shaders/gameplay_bg.frag"
   isMobile = defined(mobile)
   paddingFromSides = when isMobile: vector(104, 16) else: vector(52, 8)
@@ -39,7 +40,7 @@ type GameLayer = ref object of PhysicsLayer
 proc onFingerDown(this: GameLayer, x, y: float)
 proc onFingerUp(this: GameLayer, x, y: float)
 proc onFingerDrag(this: GameLayer, x, y: float)
-proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int
+proc breakFromGrid(this: GameLayer, hexagon: Hexagon, velocity: Vector): int
 proc resetProjectile(this: GameLayer, color: int = -1)
 proc resetGame(this: GameLayer)
 
@@ -188,7 +189,13 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
     # When could this happen?
     return
   
-  let insertedHexagon = newHexagon(this.projectile.color, this.gameobjectsScalar, true)
+  let
+    insertedHexagon = newHexagon(this.projectile.color, this.gameobjectsScalar, true)
+    # NOTE: Hack work-around.
+    # We can't use the projectile's current velocity, because it is reflected during collision resolution.
+    # We can't simply invert it, because it seems to be incorrect sometimes (at least the x component).
+    # i.e. the x component becomes flipped when it should not, _sometimes_.
+    projectileVel = this.projectile.lastMoveVector * 60
 
   this.resetProjectile()
 
@@ -196,7 +203,7 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
   this.addChild(insertedHexagon)
 
   # TODO: Break off hexagons if needed, play respective sound effect
-  if this.breakFromGrid(insertedHexagon) > 0:
+  if this.breakFromGrid(insertedHexagon, projectileVel) > 0:
     hexagonBreakSfx.play()
   else:
     hexagonClickSfx.play()
@@ -223,18 +230,22 @@ proc dropFromGrid(this: GameLayer, hexagons: HashSet[Hexagon]) =
     discard this.grid.removeHexagon(hexagon)
     this.fallingHexagons.add(hexagon)
 
-proc breakFromGrid(this: GameLayer, hexagon: Hexagon): int =
-  var adjacentSimilarHexagons = this.grid.floodfill(hexagon)
+proc random(v1, v2: float): float =
+  if v1 >= 0:
+    rand(v1 .. v2)
+  else:
+    rand(v2 .. v1)
 
+proc breakFromGrid(this: GameLayer, hexagon: Hexagon, velocity: Vector): int =
+  var adjacentSimilarHexagons = this.grid.floodfill(hexagon)
   if adjacentSimilarHexagons.len < 3:
     return 0
 
   this.dropFromGrid(adjacentSimilarHexagons)
-  # TODO: Set rand velocity
   for hexagon in adjacentSimilarHexagons:
     hexagon.velocity = vector(
-      0,
-      100
+      random(velocity.x / 4, velocity.x / 2),
+      random(velocity.y / 4, velocity.y / 2)
     )
 
   return adjacentSimilarHexagons.len
@@ -279,6 +290,7 @@ method update*(this: GameLayer, deltaTime: float) =
     tween.update(deltaTime)
 
   for hexagon in this.fallingHexagons:
+    hexagon.velocity.y += gravity * deltaTime
     hexagon.update(deltaTime)
 
 proc renderIndicator(this: GameLayer, ctx: Target) =
