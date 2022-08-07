@@ -88,12 +88,12 @@ proc newGameLayer*(width, height: int): GameLayer =
 
   this.projectileAnchor = vector(
     gamestate.resolution.x / 2,
-    gamestate.resolution.y * 0.75
+    gamestate.resolution.y * 0.7
   )
 
-  this.maxProjectilePullBackDistance = this.projectileAnchor.x - HEXAGON_SIZE.y * 0.5
+  this.maxProjectilePullBackDistance = (this.projectileAnchor.x * 0.65) - HEXAGON_SIZE.y * 0.5
   this.minProjectileVelocity = gamestate.resolution.y / 3
-  this.maxProjectileVelocity = gamestate.resolution.y * 2
+  this.maxProjectileVelocity = gamestate.resolution.y * 1.2
   this.fallingHexagons = newSafeSet[Hexagon]()
 
   when isMobile:
