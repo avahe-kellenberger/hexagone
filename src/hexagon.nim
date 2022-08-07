@@ -10,7 +10,7 @@ type HexagonColor* = enum
   PURPLE
 
 const
-  HEXAGON_IMAGE_PATH = "./assets/gfx/hexagon_small.png"
+  HEXAGON_IMAGE_PATH = "./assets/gfx/hexagon.png"
   COLOR_TABLE = {
     RED: newColor(246, 76, 59),
     YELLOW: newColor(243, 228, 17),
@@ -62,6 +62,8 @@ proc getRandomHexagonColorExcluding*(colors: set[HexagonColor]): HexagonColor =
 
 Hexagon.renderAsChildOf(PhysicsBody):
   let alpha = uint8(clamp(0, uint8 (this.alpha * 255), 255))
+  # hexagonImage.setBlendMode(BLEND_NORMAL_ADD_ALPHA)
+  hexagonImage.setBlendMode(BLEND_NORMAL_FACTOR_ALPHA)
   hexagonImage.setRGBA(this.rgb.r, this.rgb.g, this.rgb.b, alpha)
   hexagonImage.blitScale(nil, ctx, this.x + offsetX, this.y + offsetY, this.scale, this.scale)
 

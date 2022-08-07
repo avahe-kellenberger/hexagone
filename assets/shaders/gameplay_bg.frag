@@ -7,11 +7,11 @@ varying vec2 texCoord;
 uniform float time;
 uniform vec2 resolution;
 
-uniform vec3 bgColor = vec3(0.906, 0.661, .212);
-uniform vec3 borderColor = vec3(0.148, 0.125, .182);
-uniform float hexagonSize = 1.;
-uniform float xSpeed = -0.04;
-uniform float ySpeed = 0.;
+uniform vec3 bgColor = vec3(0.106, 0.161, 0.212);
+uniform vec3 borderColor = vec3(0.148, 0.125, 0.182);
+uniform float hexagonSize = 1.0;
+uniform float xSpeed = 0;
+uniform float ySpeed = 0.08;
 
 // 1.73 is a distance factor for a hexagon.
 const vec2 hexRatio = vec2(1.0, 1.73);
