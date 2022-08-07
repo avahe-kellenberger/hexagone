@@ -10,7 +10,7 @@ import
   sounds as soundsModule
 
 const
-  gravity = 1000.0
+  gravity = 2000.0
   fragShaderPath = "./assets/shaders/gameplay_bg.frag"
   isMobile = defined(mobile)
   paddingFromSides = when isMobile: vector(104, 16) else: vector(52, 8)
