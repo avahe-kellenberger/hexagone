@@ -7,6 +7,7 @@ import
   hexagon_grid as hexagonGridModule,
   hexagon as hexagonModule,
   background as backgroundModule,
+  postprocessshader as postprocessshaderModule,
   sounds as soundsModule
 
 const
@@ -27,6 +28,7 @@ type
     typeof(i.items) is T
   GameLayer = ref object of PhysicsLayer
     background: Background
+    shockwave: PostProcessShader
     touchLoc: Vector
     score: int
     grid: HexagonGrid
@@ -85,6 +87,7 @@ proc newGameLayer*(width, height: int): GameLayer =
     this.addChild(topWall)
 
   this.background = newBackground(fragShaderPath)
+  this.shockwave = newPostProcessShader("./assets/shaders/shockwave.frag")
 
   this.projectileAnchor = vector(
     gamestate.resolution.x / 2,
@@ -398,4 +401,6 @@ GameLayer.renderAsChildOf(PhysicsLayer):
 
   for hexagon in this.fallingHexagons:
     hexagon.render(ctx, offsetX, offsetY)
+
+  this.shockwave.render(ctx)
 

@@ -2,14 +2,15 @@ import shade
 
 const vertShaderPath = "./assets/shaders/common.vert"
 
-type Background* = object
+type PostProcessShader* = object
   shader: Shader
 
-proc newBackground*(fragShaderPath: string): Background =
+proc newPostProcessShader*(fragShaderPath: string): PostProcessShader =
   result.shader = newShader(vertShaderPath, fragShaderPath)
 
-Background.render:
+PostProcessShader.render:
   this.shader.render(ctx, gamestate.runTime, gamestate.resolution)
-  ctx.rectangleFilled(0, 0, gamestate.resolution.x, gamestate.resolution.y, WHITE)
+  # TODO: Do I need to render the game image again for this shader?
+  # blit(ctx.image, nil, ctx, 0, 0)
   deactivateShaderProgram()
 
