@@ -9,7 +9,7 @@ proc newBackground*(fragShaderPath: string): Background =
   result.shader = newShader(vertShaderPath, fragShaderPath)
 
 Background.render:
-  this.shader.render(ctx, gamestate.runTime, gamestate.resolution)
+  this.shader.render(gamestate.runTime, gamestate.resolution)
   ctx.rectangleFilled(0, 0, gamestate.resolution.x, gamestate.resolution.y, WHITE)
   deactivateShaderProgram()
 
