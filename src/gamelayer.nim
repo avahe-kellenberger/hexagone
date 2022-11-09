@@ -7,7 +7,7 @@ import
   hexagon_grid as hexagonGridModule,
   hexagon as hexagonModule,
   background as backgroundModule,
-  postprocessshader as postprocessshaderModule,
+  shockwave as shockwaveModule,
   sounds as soundsModule
 
 const
@@ -26,9 +26,10 @@ const
 type
   Iterable[T] = concept i
     typeof(i.items) is T
+
   GameLayer = ref object of PhysicsLayer
     background: Background
-    shockwave: PostProcessShader
+    shockwave: Shockwave
     touchLoc: Vector
     score: int
     grid: HexagonGrid
@@ -87,7 +88,8 @@ proc newGameLayer*(width, height: int): GameLayer =
     this.addChild(topWall)
 
   this.background = newBackground(fragShaderPath)
-  this.shockwave = newPostProcessShader("./assets/shaders/shockwave.frag")
+  this.shockwave = newShockwave()
+  Game.postProcessingShader = this.shockwave
 
   this.projectileAnchor = vector(
     gamestate.resolution.x / 2,
@@ -226,6 +228,11 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
     # i.e. the x component becomes flipped when it should not, _sometimes_.
     projectileVel = this.projectile.lastMoveVector * 60
 
+  let projectileScreenCoord = vector(
+    this.projectile.x / gamestate.resolution.x,
+    this.projectile.y / gamestate.resolution.y
+  )
+
   this.resetProjectile()
 
   this.grid.setHexagon(insertionCell.x, insertionCell.y, insertedHexagon)
@@ -233,6 +240,9 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
 
   if this.breakFromGrid(insertedHexagon, projectileVel) > 0:
     hexagonBreakSfx.play()
+    # Start shockwave animation!
+    this.shockwave.center = projectileScreenCoord
+    this.shockwave.playAnimation()
   else:
     hexagonClickSfx.play()
 
@@ -338,6 +348,8 @@ method update*(this: GameLayer, deltaTime: float) =
     hexagon.velocity.y += gravity * deltaTime
     hexagon.update(deltaTime)
 
+  this.shockwave.update(deltaTime)
+
 proc renderIndicator(this: GameLayer, ctx: Target) =
   when isMobile:
     discard setLineThickness(4.0)
@@ -401,6 +413,4 @@ GameLayer.renderAsChildOf(PhysicsLayer):
 
   for hexagon in this.fallingHexagons:
     hexagon.render(ctx, offsetX, offsetY)
-
-  this.shockwave.render(ctx)
 

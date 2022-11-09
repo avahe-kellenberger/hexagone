@@ -1,6 +1,5 @@
 #version 140
 
-// TODO: Why is this the hexagon image?
 uniform sampler2D tex;
 
 uniform sampler2D screen_texture;
@@ -12,23 +11,19 @@ varying vec2 texCoord;
 uniform float time;
 uniform vec2 resolution;
 
-uniform float force = 0.025;
+uniform float force = 0.0;
+uniform float size = 0.0;
+uniform float thickness = 0.0;
 uniform vec2 center = vec2(0.5, 0.5);
-uniform float size = 0.5;
-uniform float thickness = 0.5;
 
 void main(void) {
-  vec2 SCREEN_UV = gl_FragCoord.xy / resolution;
-  float ratio = resolution.x / resolution.y;
-  vec2 scaledUV = (SCREEN_UV - vec2(0.5, 0.0)) / vec2(ratio, 1.0) + vec2(0.5, 0.0);
-
-  float distFromCenter = length(scaledUV - center);
+  float ratio = resolution.y / resolution.x;
+  float distFromCenter = length(texCoord - center);
   float mask =
     (1.0 - smoothstep(size - 0.1, size, distFromCenter)) *
     smoothstep(size - thickness - 0.1, size - thickness, distFromCenter);
 
-  vec2 displacement = normalize(scaledUV - center) * force * mask;
-  gl_FragColor = texture(screen_texture, SCREEN_UV - displacement);
-  // gl_FragColor = texture(tex, gl_FragCoord.xy - displacement);
+  vec2 displacement = normalize(texCoord - center) * force * mask;
+  gl_FragColor = texture(screen_texture, texCoord - displacement);
 }
 
