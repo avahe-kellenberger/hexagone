@@ -62,7 +62,6 @@ proc getRandomHexagonColorExcluding*(colors: set[HexagonColor]): HexagonColor =
 
 Hexagon.renderAsChildOf(PhysicsBody):
   let alpha = uint8(clamp(0, uint8 (this.alpha * 255), 255))
-  # hexagonImage.setBlendMode(BLEND_NORMAL_ADD_ALPHA)
   hexagonImage.setBlendMode(BLEND_NORMAL_FACTOR_ALPHA)
   hexagonImage.setRGBA(this.rgb.r, this.rgb.g, this.rgb.b, alpha)
   hexagonImage.blitScale(nil, ctx, this.x + offsetX, this.y + offsetY, this.scale, this.scale)

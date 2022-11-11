@@ -403,12 +403,11 @@ proc renderLineToAnchor(this: GameLayer, ctx: Target) =
       slingshotLineColor
     )
 
-GameLayer.renderAsChildOf(PhysicsLayer):
+method render*(this: GameLayer, ctx: Target, offsetX, offsetY: float = 0) =
   this.background.render(ctx)
   this.renderIndicator(ctx)
   this.renderLineToAnchor(ctx)
 
-  # Render all children of the layer
   procCall render(PhysicsLayer this, ctx, offsetX, offsetY)
 
   for hexagon in this.fallingHexagons:
