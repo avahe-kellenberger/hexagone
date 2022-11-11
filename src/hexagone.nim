@@ -38,5 +38,8 @@ menuLayer.onPlayButtonPressed:
   when defined(release):
     song.play(0.5)
 
+menuLayer.onExitButtonPressed:
+  Game.stop()
+
 Game.start()
 
