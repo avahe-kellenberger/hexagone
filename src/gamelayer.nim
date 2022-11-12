@@ -32,6 +32,7 @@ type
     shockwave: Shockwave
     touchLoc: Vector
     score: int
+    scoreText: TextBox
     grid: HexagonGrid
     gameobjectsScalar: float
     projectileAnchor: Vector
@@ -55,6 +56,14 @@ proc newGameLayer*(width, height: int): GameLayer =
   result = GameLayer()
   initPhysicsLayer(PhysicsLayer result, newSpatialGrid(1, 2, width + 1), VECTOR_ZERO)
   let this = result
+
+  # Load our font
+  let (_, font) = Fonts.load("./assets/Knewave-Regular.ttf", int(gamestate.resolution.x * 0.06))
+
+  # Create some text to render
+  this.scoreText = newTextBox(font, "Score: 0", WHITE, FILTER_NEAREST)
+  this.scoreText.setLocation(gamestate.resolution.x * 0.2, gamestate.resolution.y * 0.93)
+  this.addChild(this.scoreText)
 
   # Place big rectangles outisde the viewable bounds to act as walls.
   block:
@@ -238,8 +247,11 @@ proc onProjectileCollision(this: GameLayer, other: PhysicsBody): bool =
   this.grid.setHexagon(insertionCell.x, insertionCell.y, insertedHexagon)
   this.addChild(insertedHexagon)
 
-  if this.breakFromGrid(insertedHexagon, projectileVel) > 0:
+  let numBrokenHexagons = this.breakFromGrid(insertedHexagon, projectileVel)
+  if numBrokenHexagons > 0:
     hexagonBreakSfx.play()
+    this.score += numBrokenHexagons
+    this.scoreText.setText("Score: " & $this.score)
     # Start shockwave animation!
     this.shockwave.center = projectileScreenCoord
     this.shockwave.playAnimation()
