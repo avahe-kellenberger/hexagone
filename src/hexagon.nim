@@ -2,7 +2,7 @@ import shade
 
 import std/[tables, random]
 
-type HexagonColor* = enum
+type HexagonColor* {.pure.} = enum
   RED
   YELLOW
   GREEN
@@ -12,11 +12,11 @@ type HexagonColor* = enum
 const
   HEXAGON_IMAGE_PATH = "./assets/gfx/hexagon.png"
   COLOR_TABLE = {
-    RED: newColor(246, 76, 59),
-    YELLOW: newColor(243, 228, 17),
-    GREEN: newColor(27, 174, 86),
-    BLUE: newColor(95, 198, 216),
-    PURPLE: newColor(110, 58, 106)
+    HexagonColor.RED: newColor(246, 76, 59),
+    HexagonColor.YELLOW: newColor(243, 228, 17),
+    HexagonColor.GREEN: newColor(113, 255, 61),
+    HexagonColor.BLUE: newColor(61, 210, 255),
+    HexagonColor.PURPLE: newColor(202, 60, 255)
   }.toTable()
   HEXAGON_SIZE* = vector(50, 58)
   HEXAGON_HALF_WIDTH* = HEXAGON_SIZE.x * 0.5
